@@ -102,3 +102,22 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# data dir
+/experiments/data/
+
+# model dir
+/experiments/models/
+
+# log dir
+/experiments/log/
+
+# test dir
+/tests/
+
+# IDE 
+/.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
