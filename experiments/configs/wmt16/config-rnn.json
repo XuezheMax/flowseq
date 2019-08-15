@@ -1,0 +1,52 @@
+{
+  "ro_vocab_size": 31500,
+  "en_vocab_size": 31500,
+  "max_ro_length": 80,
+  "max_en_length": 80,
+  "share_embed": true,
+  "tie_weights": true,
+  "embed_dim": 256,
+  "latent_dim": 256,
+  "hidden_size": 512,
+  "prior": {
+    "type": "normal",
+    "length_predictor": {
+      "type": "diff_softmax",
+      "diff_range": 20,
+      "dropout": 0.33,
+      "label_smoothing": 0.1
+    },
+    "flow": {
+      "levels": 3,
+      "num_steps": [4, 4, 2],
+      "factors": [2, 2],
+      "hidden_features": 512,
+      "transform": "affine",
+      "coupling_type": "rnn",
+      "rnn_mode": "LSTM",
+      "dropout": 0.0,
+      "inverse": true
+    }
+  },
+  "encoder": {
+    "type": "rnn",
+    "rnn_mode": "LSTM",
+    "num_layers": 3
+  },
+  "posterior": {
+    "type": "rnn",
+    "rnn_mode": "LSTM",
+    "num_layers": 2,
+    "use_attn": true,
+    "dropout": 0.33,
+    "dropword": 0.2
+  },
+  "decoder": {
+    "type": "rnn",
+    "rnn_mode": "LSTM",
+    "num_layers": 2,
+    "dropout": 0.33,
+    "dropword": 0.2,
+    "label_smoothing": 0.0
+  }
+}

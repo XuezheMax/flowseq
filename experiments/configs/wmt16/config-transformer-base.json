@@ -1,0 +1,57 @@
+{
+  "ro_vocab_size": 31500,
+  "en_vocab_size": 31500,
+  "max_ro_length": 80,
+  "max_en_length": 80,
+  "share_embed": true,
+  "tie_weights": true,
+  "embed_dim": 256,
+  "latent_dim": 256,
+  "hidden_size": 1024,
+  "prior": {
+    "type": "normal",
+    "length_predictor": {
+      "type": "diff_softmax",
+      "diff_range": 20,
+      "dropout": 0.33,
+      "label_smoothing": 0.1
+    },
+    "flow": {
+      "levels": 3,
+      "num_steps": [4, 4, 2],
+      "factors": [2, 2],
+      "hidden_features": 512,
+      "transform": "affine",
+      "coupling_type": "self_attn",
+      "heads": 8,
+      "pos_enc": "attn",
+      "max_length": 250,
+      "dropout": 0.0,
+      "inverse": true
+    }
+  },
+  "encoder": {
+    "type": "transformer",
+    "num_layers": 6,
+    "heads": 8,
+    "max_length": 250,
+    "dropout": 0.1
+  },
+  "posterior": {
+    "type": "transformer",
+    "num_layers": 4,
+    "heads": 8,
+    "max_length": 250,
+    "dropout": 0.1,
+    "dropword": 0.2
+  },
+  "decoder": {
+    "type": "transformer",
+    "num_layers": 4,
+    "heads": 8,
+    "max_length": 250,
+    "dropout": 0.1,
+    "dropword": 0.0,
+    "label_smoothing": 0.1
+  }
+}

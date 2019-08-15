@@ -1,0 +1,3 @@
+from flownmt.modules.priors.length_predictors.predictor import LengthPredictor
+from flownmt.modules.priors.length_predictors.diff_discretized_mix_logistic import DiffDiscreteMixLogisticLengthPredictor
+from flownmt.modules.priors.length_predictors.diff_softmax import DiffSoftMaxLengthPredictor
