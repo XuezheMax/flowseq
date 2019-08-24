@@ -109,7 +109,7 @@ class NMTDataSet():
         id2word = {i: word for word, i in word2id.items()}
         return word2id, id2word
 
-    def dump_to_file(self, ms, lengths, path):
+    def dump_to_file(self, ms, lengths, path, post_edit=True):
         # ms: list of (batch_size, sent_len)
         with codecs.open(path, "w", encoding="utf-8") as fout:
             for m, length in zip(ms, lengths):
@@ -122,12 +122,12 @@ class NMTDataSet():
                         if word == EOS:
                             break
                         sent.append(word)
-                    if self.subword == "sep-bpe" or self.subword == "joint-bpe":
+                    if post_edit and (self.subword == "sep-bpe" or self.subword == "joint-bpe"):
                         line = ' '.join(sent)
                         line = line.replace('@@ ', '').strip()
                         if line.endswith("@@"):
                             line = line[-2:]
-                    elif self.subword == "joint-spm":
+                    elif post_edit and (self.subword == "joint-spm"):
                         line = ''.join(sent)
                         line = line.replace('▁', ' ').strip()
                     else:
@@ -385,7 +385,7 @@ class DataIterator():
     def process_batch(self, minibatch):
         # padding and make mask of minibatch
         # return: batch_size x max_len
-        minibatch = sorted(minibatch, key=lambda x: len(x[1]), reverse=True)
+        # minibatch = sorted(minibatch, key=lambda x: len(x[1]), reverse=True)
         src_max_len = max([len(d[0]) for d in minibatch])
         tgt_max_len = max([len(d[1]) for d in minibatch])
 
@@ -434,7 +434,8 @@ class DataIterator():
                     self.data,
                     self.batch_size,
                     batch_size_fn=self.batch_size_fn):
-                self.batches.append(sorted(b, key=lambda x: len(x[1]), reverse=True))
+                # self.batches.append(sorted(b, key=lambda x: len(x[1]), reverse=True))
+                self.batches.append(b)
 
     def __iter__(self):
         while True:

@@ -29,7 +29,7 @@ def calc_bleu(fref, fmt, result_path):
     return bleu
 
 
-def translate_argmax(dataset, dataloader, flownmt, result_path, outfile):
+def translate_argmax(dataset, dataloader, flownmt, result_path, outfile, tau, n_tr):
     flownmt.eval()
     translations = []
     lengths = []
@@ -38,7 +38,7 @@ def translate_argmax(dataset, dataloader, flownmt, result_path, outfile):
     start_time = time.time()
     num_back = 0
     for step, (src, tgt, src_masks, tgt_masks) in enumerate(dataloader):
-        trans, lens = flownmt.translate_argmax(src, src_masks)
+        trans, lens = flownmt.translate_argmax(src, src_masks, n_tr=n_tr, tau=tau)
         translations.append(trans)
         lengths.append(lens)
         length_err += (lens.float() - tgt_masks.sum(dim=1)).abs().sum().item()
@@ -47,7 +47,7 @@ def translate_argmax(dataset, dataloader, flownmt, result_path, outfile):
             sys.stdout.write("\b" * num_back)
             sys.stdout.write(" " * num_back)
             sys.stdout.write("\b" * num_back)
-            log_info = 'argmax translating...{}'.format(num_insts)
+            log_info = 'argmax translating (tau={:.1f}, n_tr={})...{}'.format(tau, n_tr, num_insts)
             sys.stdout.write(log_info)
             sys.stdout.flush()
             num_back = len(log_info)
@@ -58,11 +58,9 @@ def translate_argmax(dataset, dataloader, flownmt, result_path, outfile):
     print('#SENT: {}, Length Err: {:.1f}, BLEU: {:.2f}'.format(num_insts, length_err / num_insts, bleu))
 
 
-def translate_iw(dataset, dataloader, flownmt, result_path, outfile, tau):
+def translate_iw(dataset, dataloader, flownmt, result_path, outfile, tau, n_len, n_tr):
     flownmt.eval()
-    n_len = 3
     iwk = 4
-    n_tr = 4 if tau > 1e-4 else 1
     translations = []
     lengths = []
     length_err = 0
@@ -79,7 +77,7 @@ def translate_iw(dataset, dataloader, flownmt, result_path, outfile, tau):
             sys.stdout.write("\b" * num_back)
             sys.stdout.write(" " * num_back)
             sys.stdout.write("\b" * num_back)
-            log_info = 'importance weighted translating (tau={:.1f})...{}'.format(tau, num_insts)
+            log_info = 'importance weighted translating (tau={:.1f}, n_len={}, n_tr={})...{}'.format(tau, n_len, n_tr, num_insts)
             sys.stdout.write(log_info)
             sys.stdout.flush()
             num_back = len(log_info)
@@ -88,6 +86,31 @@ def translate_iw(dataset, dataloader, flownmt, result_path, outfile, tau):
     dataset.dump_to_file(translations, lengths, outfile)
     bleu = calc_bleu(dataloader.tgt_sort_origin_path, outfile, result_path)
     print('#SENT: {}, Length Err: {:.1f}, BLEU: {:.2f}'.format(num_insts, length_err / num_insts, bleu))
+
+
+def sample(dataset, dataloader, flownmt, result_path, outfile, tau, n_len, n_tr):
+    flownmt.eval()
+    lengths = []
+    translations = []
+    num_insts = 0
+    start_time = time.time()
+    num_back = 0
+    for step, (src, tgt, src_masks, tgt_masks) in enumerate(dataloader):
+        trans, lens = flownmt.translate_sample(src, src_masks, n_len=n_len, n_tr=n_tr, tau=tau)
+        translations.append(trans)
+        lengths.append(lens)
+        num_insts += src.size(0)
+        if step % 10 == 0:
+            sys.stdout.write("\b" * num_back)
+            sys.stdout.write(" " * num_back)
+            sys.stdout.write("\b" * num_back)
+            log_info = 'sampling (tau={:.1f}, n_len={}, n_tr={})...{}'.format(tau, n_len, n_tr, num_insts)
+            sys.stdout.write(log_info)
+            sys.stdout.flush()
+            num_back = len(log_info)
+    print('time: {:.1f}s'.format(time.time() - start_time))
+    outfile = os.path.join(result_path, outfile)
+    dataset.dump_to_file(translations, lengths, outfile, post_edit=False)
 
 
 def setup(args):
@@ -148,16 +171,30 @@ def main(args):
 
     result_path = args.result_path
     if args.decode == 'argmax':
-        outfile = 'argmax.dev.mt'
-        translate_argmax(dataset, val_iter, flownmt, result_path, outfile)
-        outfile = 'argmax.test.mt'
-        translate_argmax(dataset, test_iter, flownmt, result_path, outfile)
-    else:
         tau = args.tau
-        outfile = 'iw.dev.t{:.1f}.mt'.format(tau)
-        translate_iw(dataset, val_iter, flownmt, result_path, outfile, tau)
-        outfile = 'iw.test.t{:.1f}.mt'.format(tau)
-        translate_iw(dataset, test_iter, flownmt, result_path, outfile, tau)
+        n_tr = args.ntr
+        outfile = 'argmax.t{:.1f}.ntr{}.dev.mt'.format(tau, n_tr)
+        translate_argmax(dataset, val_iter, flownmt, result_path, outfile, tau, n_tr)
+        outfile = 'argmax.t{:.1f}.ntr{}.test.mt'.format(tau, n_tr)
+        translate_argmax(dataset, test_iter, flownmt, result_path, outfile, tau, n_tr)
+    elif args.decode == 'iw':
+        tau = args.tau
+        n_len = args.nlen
+        n_tr = args.ntr
+        outfile = 'iw.t{:.1f}.nlen{}.ntr{}.dev.mt'.format(tau, n_len, n_tr)
+        translate_iw(dataset, val_iter, flownmt, result_path, outfile, tau, n_len, n_tr)
+        outfile = 'iw.t{:.1f}.nlen{}.ntr{}.test.mt'.format(tau, n_len, n_tr)
+        translate_iw(dataset, test_iter, flownmt, result_path, outfile, tau, n_len, n_tr)
+    else:
+        assert not args.bucket_batch
+        tau = args.tau
+        n_len = args.nlen
+        n_tr = args.ntr
+        outfile = 'sample.t{:.1f}.nlen{}.ntr{}.dev.mt'.format(tau, n_len, n_tr)
+        sample(dataset, val_iter, flownmt, result_path, outfile, tau, n_len, n_tr)
+        outfile = 'sample.t{:.1f}.nlen{}.ntr{}.test.mt'.format(tau, n_len, n_tr)
+        sample(dataset, test_iter, flownmt, result_path, outfile, tau, n_len, n_tr)
+
 
 if __name__ == "__main__":
     args = parse_translate_args()

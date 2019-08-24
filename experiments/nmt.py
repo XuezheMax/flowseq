@@ -55,7 +55,7 @@ def calc_bleu(fref, fmt, result_path):
 
 def translate(epoch, dataset, dataloader, flownmt, result_path, log):
     flownmt.eval()
-    taus = [0.0, 1.0]
+    taus = [0.0,]
     bleu = 0
     logging('argmax translating...', log)
     for tau in taus:
@@ -299,27 +299,45 @@ def init_dataloader(args, dataset):
 def init_model(args, train_iter, flownmt):
     flownmt.eval()
     init_batch_size = args.init_batch_size
-    logging('Rank {}, init model: {} instances'.format(args.rank, init_batch_size), args.log)
+    if args.rank <= 0:
+        logging('Rank {}, init model: {} instances'.format(args.rank, init_batch_size), args.log)
+    else:
+        print('Rank {}, init model: {} instances'.format(args.rank, init_batch_size))
     src_sents, tgt_sents, src_masks, tgt_masks = train_iter.get_batch(init_batch_size)
-    logging("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)), args.log)
+    if args.rank <= 0:
+        logging("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)), args.log)
+    else:
+        print("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)))
     flownmt.init(src_sents, tgt_sents, src_masks, tgt_masks, init_scale=1.0)
 
 
 def init_posterior(args, train_iter, flownmt):
     flownmt.eval()
     init_batch_size = args.init_batch_size
-    logging('Rank {}, init posterior: {} instances'.format(args.rank, init_batch_size), args.log)
+    if args.rank <= 0:
+        logging('Rank {}, init posterior: {} instances'.format(args.rank, init_batch_size), args.log)
+    else:
+        print('Rank {}, init posterior: {} instances'.format(args.rank, init_batch_size))
     src_sents, tgt_sents, src_masks, tgt_masks = train_iter.get_batch(init_batch_size)
-    logging("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)), args.log)
+    if args.rank <= 0:
+        logging("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)), args.log)
+    else:
+        print("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)))
     flownmt.init_posterior(src_sents, tgt_sents, src_masks, tgt_masks, init_scale=1.0)
 
 
 def init_prior(args, train_iter, flownmt):
     flownmt.eval()
     init_batch_size = args.init_batch_size
-    logging('Rank {}, init prior: {} instances'.format(args.rank, init_batch_size), args.log)
+    if args.rank <= 0:
+        logging('Rank {}, init prior: {} instances'.format(args.rank, init_batch_size), args.log)
+    else:
+        print('Rank {}, init prior: {} instances'.format(args.rank, init_batch_size))
     src_sents, tgt_sents, src_masks, tgt_masks = train_iter.get_batch(init_batch_size)
-    logging("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)), args.log)
+    if args.rank <= 0:
+        logging("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)), args.log)
+    else:
+        print("maximum sentence length (src, tgt): {}, {}".format(src_sents.size(1), tgt_sents.size(1)))
     flownmt.init_prior(src_sents, tgt_sents, src_masks, tgt_masks, init_scale=1.0)
 
 
@@ -751,11 +769,7 @@ def main(args):
         # number of parameters
         logging('Rank %d # of Parameters: %d' % (args.rank, sum([param.numel() for param in flownmt.parameters()])), args.log)
 
-        if pretrain:
-            init_posterior(args, train_iter, flownmt)
-        elif args.recover < 0:
-            init_model(args, train_iter, flownmt)
-        elif args.recover == 0:
+        if args.recover == 0:
             flownmt.load_core(checkpoint_name, args.device, load_prior=True)
             with torch.no_grad():
                 reconstruct(0, dataset, val_iter, flownmt, args.result_path, args.log)
@@ -765,13 +779,21 @@ def main(args):
         flownmt.init_distributed(args.rank, args.local_rank)
 
     if pretrain:
+        init_posterior(args, train_iter, flownmt)
+    elif args.recover < 0:
+        init_model(args, train_iter, flownmt)
+
+    if args.rank >= 0:
+        flownmt.sync_params()
+
+    if pretrain:
         zero_steps = args.init_steps
         pretrain_model(args, dataset, train_iter, val_iter, flownmt, zero_steps)
-        if args.rank <= 0:
-            init_prior(args, train_iter, flownmt)
-            flownmt.save_core(checkpoint_name)
+        init_prior(args, train_iter, flownmt)
         if args.rank >= 0:
             flownmt.sync_params()
+        if args.rank <= 0:
+            flownmt.save_core(checkpoint_name)
 
     train(args, dataset, train_iter, val_iter, test_iter, flownmt)
 

@@ -53,8 +53,10 @@ def parse_translate_args():
     parser.add_argument('--data_path', help='path for data file.', default=None)
     parser.add_argument("--subword", type=str, default="joint-bpe", choices=['joint-bpe', 'sep-bpe', 'word', 'bert-bpe', 'joint-spm'])
     parser.add_argument("--bucket_batch", type=int, default=0, help="whether bucket data based on tgt length in batching")
-    parser.add_argument('--decode', choices=['argmax', 'iw'], help='decoding algorithm', default='argmax')
+    parser.add_argument('--decode', choices=['argmax', 'iw', 'sample'], help='decoding algorithm', default='argmax')
     parser.add_argument('--tau', type=float, default=0.0, metavar='S', help='temperature for iw decoding (default: 0.)')
+    parser.add_argument('--nlen', type=int, default=3, help='number of length candidates.')
+    parser.add_argument('--ntr', type=int, default=1, help='number of samples per length candidate.')
     return parser.parse_args()
 
 

@@ -46,7 +46,7 @@ class ShiftRecurrentCore(nn.Module):
         if self.dropout2d is not None:
             tgt_embed = self.dropout2d(tgt_embed)
         lengths = tgt_masks.sum(dim=1).long()
-        packed_embed = pack_padded_sequence(tgt_embed, lengths, batch_first=True)
+        packed_embed = pack_padded_sequence(tgt_embed, lengths, batch_first=True, enforce_sorted=False)
         packed_enc, _ = self.rnn(packed_embed)
         tgt_enc, _ = pad_packed_sequence(packed_enc, batch_first=True, total_length=tgt_masks.size(1))
 
@@ -77,7 +77,7 @@ class ShiftRecurrentCore(nn.Module):
             if self.dropout2d is not None:
                 tgt_embed = self.dropout2d(tgt_embed)
             lengths = tgt_masks.sum(dim=1).long()
-            packed_embed = pack_padded_sequence(tgt_embed, lengths, batch_first=True)
+            packed_embed = pack_padded_sequence(tgt_embed, lengths, batch_first=True, enforce_sorted=False)
             packed_enc, _ = self.rnn(packed_embed)
             tgt_enc, _ = pad_packed_sequence(packed_enc, batch_first=True, total_length=tgt_masks.size(1))
 

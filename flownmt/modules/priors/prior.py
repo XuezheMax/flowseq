@@ -88,7 +88,7 @@ class Prior(nn.Module):
 
     def sample(self, nlengths: int, nsamples: int, src: torch.Tensor,
                ctx: torch.Tensor, src_mask: torch.Tensor,
-               tau=0.0) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+               tau=0.0, include_zero=False) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         """
 
         Args:
@@ -104,6 +104,8 @@ class Prior(nn.Module):
                 tensor of masks [batch, src_length]
             tau: float (default 0.0)
                 temperature of density
+            include_zero: bool (default False)
+                include zero sample
 
         Returns: (Tensor1, Tensor2, Tensor3), (Tensor4, Tensor5), (Tensor6, Tensor7, Tensor8)
             Tensor1: samples from the prior [batch * nlengths * nsamples, tgt_length, nz]
@@ -130,6 +132,8 @@ class Prior(nn.Module):
         # [batch * nlengths, nsamples, tgt_length, nz]
         epsilon = src.new_empty(batch_nlen, nsamples, max_length, self.features).normal_()
         epsilon = epsilon.mul(tgt_mask.view(batch_nlen, 1, max_length, 1)) * tau
+        if include_zero:
+            epsilon[:, 0].zero_()
         # [batch * nlengths * nsamples, tgt_length, nz]
         epsilon = epsilon.view(-1, max_length, self.features)
         if nsamples * nlengths > 1:

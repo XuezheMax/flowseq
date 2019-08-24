@@ -50,7 +50,8 @@ class FlowNMTCore(nn.Module):
         self.prior.init(z.squeeze(1), tgt_masks, src_enc, src_masks, init_scale=init_scale)
 
     def sample_from_prior(self, src_sents: torch.Tensor, src_masks: torch.Tensor,
-                          nlengths: int = 1, nsamples: int = 1, tau: float = 0.0) \
+                          nlengths: int = 1, nsamples: int = 1, tau: float = 0.0,
+                          include_zero=False) \
             -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         """
         sampling from prior distribution
@@ -79,7 +80,8 @@ class FlowNMTCore(nn.Module):
         """
         src_enc, ctx = self.encoder(src_sents, masks=src_masks)
         # [batch, nsamples, tgt_length, nz]
-        return self.prior.sample(nlengths, nsamples, src_enc, ctx, src_masks, tau=tau)
+        return self.prior.sample(nlengths, nsamples, src_enc, ctx, src_masks, tau=tau,
+                                 include_zero=include_zero)
 
     def sample_from_posterior(self, tgt_sents: torch, tgt_masks: torch.Tensor,
                               src_enc: torch.Tensor, src_masks: torch.Tensor,
@@ -193,7 +195,8 @@ class FlowNMTCore(nn.Module):
         (z, _, tgt_masks), \
         (lengths, log_probs_length), \
         (src, ctx, src_masks) = self.sample_from_prior(src_sents, src_masks,
-                                                       nlengths=n_len, nsamples=n_tr, tau=tau)
+                                                       nlengths=n_len, nsamples=n_tr,
+                                                       tau=tau, include_zero=True)
         # [batch, n_len]
         lengths = lengths.view(batch, n_len)
         log_probs_length = log_probs_length.view(batch, n_len)
@@ -246,6 +249,41 @@ class FlowNMTCore(nn.Module):
 
         trans = trans_org[batch_idx, idx]
         lengths = lengths[batch_idx, idx.div(n_tr)]
+        return trans, lengths
+
+    def translate_sample(self, src_sents: torch.Tensor, src_masks: torch.Tensor,
+                         n_len: int = 1, n_tr: int = 1, tau: float = 0.0) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+
+        Args:
+            src_sents: Tensor [batch, src_length]
+                tensor for source sentences
+            src_masks: Tensor [batch, src_length] or None
+                tensor for source masks
+            n_len: int (default 1)
+                number of length candidates
+            n_tr: int (default 1)
+                number of translations per sentence per length candidate
+            tau: float (default 0.0)
+                temperature
+
+        Returns: Tensor1, Tensor2
+            Tensor1: tensor for translations [batch * n_len * n_tr, tgt_length]
+            Tensor2: lengths [batch * n_len * n_tr]
+
+        """
+        batch = src_sents.size(0)
+        # [batch * n_len * n_tr, tgt_length, nz]
+        (z, _, tgt_masks), \
+        (lengths, _), \
+        (src, _, src_masks) = self.sample_from_prior(src_sents, src_masks,
+                                                     nlengths=n_len, nsamples=n_tr,
+                                                     tau=tau, include_zero=False)
+        # [batch * n_len * n_tr, tgt_length]
+        trans, _ = self.decoder.decode(z, tgt_masks, src, src_masks)
+        # [batch, n_len]
+        lengths = lengths.view(batch, n_len, 1).expand(batch, n_len, n_tr).contiguous()
+        lengths = lengths.view(batch * n_len * n_tr)
         return trans, lengths
 
     def reconstruct_loss(self, src_sents: torch.Tensor, tgt_sents: torch,
@@ -373,36 +411,6 @@ class FlowNMT(nn.Module):
         core = self._get_core()
         core.init_prior(src_sents, tgt_sents, src_masks, tgt_masks, init_scale=init_scale)
 
-    def sample_from_prior(self, src_sents: torch.Tensor, src_masks: torch.Tensor,
-                          nlengths: int = 1, nsamples: int = 1, tau: float = 1.0) \
-            -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
-        """
-        sampling from prior distribution
-        Args:
-            src_sents: Tensor [batch, src_length]
-                tensor for source sentences
-            src_masks: Tensor [batch, src_length] or None
-                tensor for source masks
-            nlengths: int (default 1)
-                number of length candidates
-            nsamples: int (default 1)
-                number of samples per src per length candidate
-            tau: float (default 0.0)
-                temperature
-
-        Returns: (Tensor1, Tensor2, Tensor3), (Tensor4, Tensor5), (Tensor6, Tensor7)
-            Tensor1: samples from the prior [batch * nlengths * nsamples, tgt_length, nz]
-            Tensor2: log probabilities [batch * nlengths * nsamples]
-            Tensor3: target masks [batch * nlengths * nsamples, tgt_length]
-            Tensor4: lengths [batch * nlengths]
-            Tensor5: log probabilities of lengths [batch * nlengths]
-            Tensor6: source encoding with shape [batch * nlengths * nsamples, src_length, hidden_size]
-            Tensor7: tensor for global state [batch * nlengths * nsamples, hidden_size]
-            Tensor8: source masks with shape [batch * nlengths * nsamples, src_length]
-
-        """
-        return self._get_core().sample_from_prior(src_sents, src_masks, nlengths=nlengths, nsamples=nsamples, tau=tau)
-
     def reconstruct(self, src_sents: torch.Tensor, tgt_sents: torch.Tensor,
                     src_masks: torch.Tensor, tgt_masks: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         return self._get_core().reconstruct(src_sents, tgt_sents, src_masks, tgt_masks)
@@ -454,6 +462,29 @@ class FlowNMT(nn.Module):
         """
         return self._get_core().translate_iw(src_sents, src_masks, n_len=n_len, n_tr=n_tr,
                                              tau=tau, k=k)
+
+    def translate_sample(self, src_sents: torch.Tensor, src_masks: torch.Tensor,
+                         n_len: int = 1, n_tr: int = 1, tau: float = 0.0) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+
+        Args:
+            src_sents: Tensor [batch, src_length]
+                tensor for source sentences
+            src_masks: Tensor [batch, src_length] or None
+                tensor for source masks
+            n_len: int (default 1)
+                number of length candidates
+            n_tr: int (default 1)
+                number of translations per sentence per length candidate
+            tau: float (default 0.0)
+                temperature
+
+        Returns: Tensor1, Tensor2
+            Tensor1: tensor for translations [batch * n_len * n_tr, tgt_length]
+            Tensor2: lengths [batch * n_len * n_tr]
+
+        """
+        return self._get_core().translate_sample(src_sents, src_masks, n_len=n_len, n_tr=n_tr, tau=tau)
 
     def reconstruct_error(self, src_sents: torch.Tensor, tgt_sents: torch,
                           src_masks: torch.Tensor, tgt_masks: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -515,7 +546,7 @@ class FlowNMT(nn.Module):
     def sync_params(self):
         assert self.distribured_enabled
         core = self._get_core()
-        flat_dist_call([param.data for param in core.parameters()], dist.broadcast, (0,))
+        flat_dist_call([param.data for param in core.parameters()], dist.all_reduce)
         self.core.needs_refresh = True
 
     def enable_allreduce(self):
