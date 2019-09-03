@@ -13,7 +13,7 @@ with state-of-the-art non-autoregressive NMT models and almost constant-decoding
 
 ## Requirements
 * Python version >= 3.6
-* Pytorch version >= 1.0
+* Pytorch version >= 1.1
 * apex
 
 ## Installation
