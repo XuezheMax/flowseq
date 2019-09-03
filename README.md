@@ -71,9 +71,9 @@ To keep the output translations original order of the input test data, use `--bu
 ## References
 ```
 @inproceedings{flowseq2019,
-    title = {FlowSeq:  Non-Autoregressive Conditional Sequence Generation with Generative Flow},
-    author = {Xuezhe Ma and Chunting Zhou and Xian Li and Graham Neubig and Eduard Hovy},
-    booktitle = {Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+    title = {FlowSeq: Non-Autoregressive Conditional Sequence Generation with Generative Flow},
+    author = {Ma, Xuezhe and Zhou, Chunting and Li, Xian and Neubig, Graham and Hovy, Eduard},
+    booktitle = {Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing},
     address = {Hong Kong},
     month = {November},
     year = {2019}
