@@ -5,7 +5,7 @@ This is the Pytorch implementation for [FlowSeq:  Non-Autoregressive Conditional
  <img src="images/flowseq_diagram.png" width="700"/>
 </p>
 
-We propose an efficient, and effective model for non-autoregressive sequence generation using latent variable models.
+We propose an efficient and effective model for non-autoregressive sequence generation using latent variable models.
 We model the complex distributions with generative flows, and design 
 several layers of flow tailored for modeling the conditional density of sequential latent variables.
 On several machine translation benchmark datasets (wmt14-ende, wmt16-enro), we achieved comparable performance 
