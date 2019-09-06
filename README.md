@@ -1,5 +1,5 @@
 # FlowSeq: a Generative Flow based Sequence-to-Sequence Tookit.
-This is the Pytorch implementation for [FlowSeq:  Non-Autoregressive Conditional Sequence Generation with Generative Flow](tba), accepted by EMNLP 2019.
+This is the Pytorch implementation for [FlowSeq:  Non-Autoregressive Conditional Sequence Generation with Generative Flow](http://arxiv.org/abs/1909.02480), accepted by EMNLP 2019.
 
 <p align="center">
  <img src="images/flowseq_diagram.png" width="700"/>
