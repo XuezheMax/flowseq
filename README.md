@@ -15,6 +15,7 @@ with state-of-the-art non-autoregressive NMT models and almost constant-decoding
 * Python version >= 3.6
 * Pytorch version >= 1.1
 * apex
+* Perl 
 
 ## Installation
 1. Install [NVIDIA-apex](https://github.com/NVIDIA/apex).
